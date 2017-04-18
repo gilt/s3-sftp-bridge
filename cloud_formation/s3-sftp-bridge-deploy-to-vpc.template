@@ -186,6 +186,13 @@
         "BridgeResourcePolicy"
       ]
     },
+    "LambdaLogGroup": {
+      "Type" : "AWS::Logs::LogGroup",
+      "Properties" : {
+        "LogGroupName": { "Fn::Join": [ "", [ "/aws/lambda/", { "Ref": "BridgeFunction" } ] ] },
+        "RetentionInDays" : 7
+      }
+    },
     "FunctionTimeoutMetric": {
       "Type": "AWS::Logs::MetricFilter",    
       "Properties": {
@@ -200,7 +207,7 @@
         ]
       },
       "DependsOn": [
-        "BridgeFunction"
+        "BridgeFunction", "LambdaLogGroup"
       ]
     },
     "ConnectionTimeoutMetric": {
@@ -217,7 +224,7 @@
         ]
       },
       "DependsOn": [
-        "BridgeFunction"
+        "BridgeFunction", "LambdaLogGroup"
       ]
     },
     "ErrorMetric": {
@@ -234,7 +241,7 @@
         ]
       },
       "DependsOn": [
-        "BridgeFunction"
+        "BridgeFunction", "LambdaLogGroup"
       ]
     },
     "S3toSFTPMetric": {
@@ -251,7 +258,7 @@
         ]
       },
       "DependsOn": [
-        "BridgeFunction"
+        "BridgeFunction", "LambdaLogGroup"
       ]
     },
     "SFTPtoS3Metric": {
@@ -268,7 +275,7 @@
         ]
       },
       "DependsOn": [
-        "BridgeFunction"
+        "BridgeFunction", "LambdaLogGroup"
       ]
     }
   },
