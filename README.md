@@ -59,6 +59,10 @@ bucket-name
 bucket-name/sub-directory
 bucket-name/sub/directory
 
+You can also provide an array of S3 locations if you want to sync an origin directory to multiple destination directories.
+Ex:
+[bucket-name, bucket2-name/subdirectory, bucket3-name/sub/directory]
+
 ### sftpConfig
 A JSON object that contains any of the connection options listed here: https://www.npmjs.com/package/ssh2#client-methods.
 
