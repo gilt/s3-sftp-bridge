@@ -41,7 +41,8 @@ exports.pollSftp = function(event, context) {
             return exports.getSftpConfig(streamConfig)
             .then(function(sftpConfig) {
               var s3Location = streamConfig.s3Location;
-              if (!s3Location) throw new Error("streamName [" + streamName + "] has no s3Location");
+
+              if (!s3Location) throw new Error("streamName [" + streamName + "] has no s3Locations");
               console.info("Attempting connection for [" + streamName + "]: host[" + sftpConfig.host + "], username[" + sftpConfig.username + "]");
               return sftpHelper.withSftpClient(sftpConfig, function(sftp) {
                 return exports.syncSftpDir(sftp, streamConfig.sftpLocation || '/', s3Location, streamConfig.fileRetentionDays);
@@ -225,7 +226,11 @@ exports.scheduledEventResourceToStreamNames = function(resource) {
   return resource.substr(resource.toLowerCase().indexOf("rule/") + 5).split(".");
 }
 
-exports.syncSftpDir = function(sftp, sftpDir, s3Location, fileRetentionDays, topDir, isInDoneDir) {
+exports.syncSftpDir = function(sftp, sftpDir, s3Locations, fileRetentionDays, topDir, isInDoneDir) {
+  if (!Array.isArray(s3Locations)) {
+    s3Locations = [s3Locations];
+  }
+
   topDir = topDir || sftpDir;
   fileRetentionDays = fileRetentionDays || 14; // Default to retaining files for 14 days.
   return sftp.readdirAsync(sftpDir)
@@ -235,7 +240,7 @@ exports.syncSftpDir = function(sftp, sftpDir, s3Location, fileRetentionDays, top
       function(fileInfo) {
         return Promise.try(function() {
           if (fileInfo.longname[0] == 'd') {
-            return exports.syncSftpDir(sftp, sftpDir + '/' + fileInfo.filename, s3Location, fileRetentionDays, topDir, isInDoneDir || fileInfo.filename == sftpHelper.DoneDir);
+            return exports.syncSftpDir(sftp, sftpDir + '/' + fileInfo.filename, s3Locations, fileRetentionDays, topDir, isInDoneDir || fileInfo.filename == sftpHelper.DoneDir);
           } else if (isInDoneDir) {
             // Purge files from the .done folder based on the stream config
             var fileDate = new Date(fileInfo.attrs.mtime * 1000),
@@ -246,25 +251,27 @@ exports.syncSftpDir = function(sftp, sftpDir, s3Location, fileRetentionDays, top
             }
           } else {
             return sftpHelper.processFile(sftp, sftpDir, fileInfo.filename, function(body) {
-              var s3Path = exports.getFilePathArray(s3Location),
-                  sftpPath = exports.getFilePathArray(sftpDir),
-                  topDirPath = exports.getFilePathArray(topDir);
-              var s3Bucket = s3Path.shift();
-              for (var i = 0; i < topDirPath.length; i++) sftpPath.shift(); // Remove the origin path from the destination directory
-              var destDir = s3Path.concat(sftpPath).join('/');
-              if (destDir.length > 0) destDir += '/';
-              console.info("Writing " + s3Bucket + "/" + destDir + fileInfo.filename + "...");
-              return s3.putObjectAsync({
-                Bucket: s3Bucket,
-                Key: destDir + fileInfo.filename,
-                Body: body,
-                Metadata: {
-                  "synched": "true"
-                }
-              })
-              .then(function(data) {
-                console.info("...done");
-                return data;
+              return Promise.map(s3Locations, function (s3Location) {
+                var s3Path = exports.getFilePathArray(s3Location),
+                    sftpPath = exports.getFilePathArray(sftpDir),
+                    topDirPath = exports.getFilePathArray(topDir);
+                var s3Bucket = s3Path.shift();
+                for (var i = 0; i < topDirPath.length; i++) sftpPath.shift(); // Remove the origin path from the destination directory
+                var destDir = s3Path.concat(sftpPath).join('/');
+                if (destDir.length > 0) destDir += '/';
+                console.info("Writing " + s3Bucket + "/" + destDir + fileInfo.filename + "...");
+                return s3.putObjectAsync({
+                  Bucket: s3Bucket,
+                  Key: destDir + fileInfo.filename,
+                  Body: body,
+                  Metadata: {
+                    "synched": "true"
+                  }
+                })
+                .then(function(data) {
+                  console.info("...done");
+                  return data;
+                });
               });
             });
           }
