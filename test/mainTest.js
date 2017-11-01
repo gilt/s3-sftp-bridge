@@ -155,6 +155,19 @@ describe('main', function() {
         }
       );
     });
+
+    it('should copy a file to multiple s3 locations', function() {
+      testHelper.env.CONFIG = '{"test-stream1":{"sftpLocation":"dir/subdir","sftpConfig":{},"s3Location":["my-bucket1","my-bucket2/subdir"]}}';
+      testHelper.sftp.objects['dir/subdir/my-file.txt'] = 'Hello World 1!';
+      return testHelper.assertContextSuccess(
+        main.pollSftp({resources: ["arn:aws:events:us-east-1:1234567890:rule/test-stream1"]}, ctx),
+        ctx,
+        function(results) {
+          assert.equal(testHelper.s3.objects['my-bucket1/my-file.txt'], 'Hello World 1!');
+          assert.equal(testHelper.s3.objects['my-bucket2/subdir/my-file.txt'], 'Hello World 1!');
+        }
+      );
+    });
   });
 
   describe('#newS3Object()', function() {
