@@ -1,5 +1,5 @@
 var AWS = require('aws-sdk'),
-    Promise = require('bluebird')
+    Promise = require('bluebird'),
     conf = Promise.promisifyAll(require('./lib/configHelper')),
     s3 = Promise.promisifyAll(require('node-s3-encryption-client')),
     awsS3 = Promise.promisifyAll(new AWS.S3()),
