@@ -245,6 +245,9 @@ exports.syncSftpDir = function(sftp, sftpDir, s3Location, fileRetentionDays, top
               return sftp.unlinkAsync(sftpDir + '/' + fileInfo.filename);
             }
           } else {
+            if (fileInfo.attrs.size <= 0) {
+              return false;
+            }
             return sftpHelper.processFile(sftp, sftpDir, fileInfo.filename, function(body) {
               var s3Path = exports.getFilePathArray(s3Location),
                   sftpPath = exports.getFilePathArray(sftpDir),
